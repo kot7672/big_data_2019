@@ -108,8 +108,8 @@ public class Main {
             }
         }
 
-        ArrayBlockingQueue<BigInteger> readData() {
-            ArrayBlockingQueue<BigInteger> bq = new ArrayBlockingQueue<>(2000);
+        ArrayBlockingQueue<BigInteger> readData(int limit) {
+            ArrayBlockingQueue<BigInteger> bq = new ArrayBlockingQueue<>(limit);
             try {
                 FileInputStream fileStream = new FileInputStream("data.txt");
                 BufferedReader br = new BufferedReader(new InputStreamReader((fileStream)));
@@ -124,8 +124,8 @@ public class Main {
             return bq;
         }
 
-        BigInteger count(int threads) {
-            bq = readData();
+        BigInteger count(int threads, int limit) {
+            bq = readData(limit);
             countingThread[] counters = new countingThread[threads];
             for (int i=0; i < threads; i++) {
                 counters[i] = new countingThread();
@@ -203,12 +203,12 @@ public class Main {
             }
         }
 
-        BigInteger count(int workers) {
+        BigInteger count(int workers, int limit) {
             system = ActorSystem.create("factorization-akka");
             main = system.actorOf(Props.create(mainActor.class, () -> new mainActor()));
             counter = BigInteger.ZERO;
 
-            bq = new ArrayBlockingQueue<>(2000);
+            bq = new ArrayBlockingQueue<>(limit);
             try {
                 FileInputStream fileStream = new FileInputStream("data.txt");
                 String line;
@@ -224,7 +224,7 @@ public class Main {
 
             main.tell(workers, main);
             try {
-                Await.result(system.whenTerminated(), Duration.create(60, TimeUnit.MINUTES));
+                Await.result(system.whenTerminated(), Duration.create(5, TimeUnit.HOURS));
             }
             catch (Exception e) {
                 System.out.println(e.getMessage());
@@ -270,7 +270,7 @@ public class Main {
         }
     }
 
-    public static void runMethod(String method, int threads) {
+    public static void runMethod(String method, int threads, int limit) {
         BigInteger result;
         long time = System.currentTimeMillis();
         switch (method) {
@@ -280,11 +280,11 @@ public class Main {
                 break;
             case "multithread":
                 System.out.println("Multithread");
-                result = (new multiThreadMethod().count(threads));
+                result = (new multiThreadMethod().count(threads, limit));
                 break;
             case "akka":
                 System.out.println("Akka");
-                result = (new akka().count(threads));
+                result = (new akka().count(threads, limit));
                 break;
             case "rxjava":
                 System.out.println("RXJava");
@@ -301,11 +301,15 @@ public class Main {
 
     public static void main(String[] args) {
 
+        int limit = 2000;
+        int bits = 32;
+        int threads = 6;
+
         System.out.println("Generating data");
         long time = System.currentTimeMillis();
-        generateData(2000, 32);
+        generateData(limit, bits);
         System.out.println("Time: " + (System.currentTimeMillis()-time) + "\n");
         String[] methods = {"simple", "multithread", "akka", "rxjava"};
-        for(String method: methods) runMethod(method, 6);
+        for(String method: methods) runMethod(method, threads, limit);
     }
 }
